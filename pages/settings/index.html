@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>DeepSeek TTS · 语音设置</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="header">
+      <div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><div><span class="eyebrow">VOICE STUDIO</span><h1>DeepSeek TTS</h1></div></div>
+      <span id="connection" class="badge">正在连接…</span>
+    </header>
+    <div class="intro"><div><h2>让文字，有声音。</h2><p>为可可子选择音色，设置她的语音回复方式。</p></div><span class="version">v0.1.0</span></div>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <div class="workspace">
+      <form id="settings-form" class="panel settings-panel">
+        <fieldset id="settings-fields" disabled>
+          <div class="section-head"><div><span class="step">01</span><h3>语音设置</h3></div><label class="switch-label"><input id="enabled" type="checkbox" role="switch"><span>启用</span></label></div>
+          <label class="label" for="api-key">API Key <span id="key-state" class="small-status">尚未配置</span></label>
+          <input id="api-key" type="password" autocomplete="new-password" spellcheck="false" maxlength="512" placeholder="填写 DeepSeek 官方 API Key">
+          <p class="help" id="key-help">保存后不显示密钥。已配置时，留空会保留原值。</p>
+          <label class="check-row key-clear"><input id="clear-key" type="checkbox">清除已保存的密钥<span class="muted">（不影响环境变量）</span></label>
+          <fieldset class="voice-group">
+            <legend class="label">默认音色</legend>
+            <div class="voice-options">
+              <label class="voice-card"><input type="radio" name="voice" value="stella" checked><span class="voice-icon stella" aria-hidden="true">✦</span><span><strong>海星</strong><small>Stella · 女声</small></span><span class="radio-dot" aria-hidden="true"></span></label>
+              <label class="voice-card"><input type="radio" name="voice" value="tide"><span class="voice-icon tide" aria-hidden="true">≈</span><span><strong>暗潮</strong><small>Tide · 男声</small></span><span class="radio-dot" aria-hidden="true"></span></label>
+            </div>
+          </fieldset>
+          <div class="form-grid">
+            <div><label class="label" for="reply-mode">语音触发</label><select id="reply-mode"><option value="on_demand">按需语音</option><option value="automatic">自动朗读 AI 回复</option></select></div>
+            <div><label class="label" for="output-mode">输出方式</label><select id="output-mode"><option value="voice">纯语音</option><option value="both">文字 + 语音</option></select></div>
+          </div>
+          <p id="mode-help" class="help">可可子可通过语音工具回复，也可以用 /ds语音 手动朗读。</p>
+          <label class="check-row"><input id="filter-markdown" type="checkbox">去除 Markdown 格式后朗读</label>
+          <details id="advanced"><summary>范围与使用限制</summary><div class="advanced-content">
+            <label class="label" for="groups">允许使用的 QQ 群</label><textarea id="groups" rows="2" placeholder="留空允许全部；多个群号用换行或逗号分隔"></textarea>
+            <label class="check-row"><input id="allow-private" type="checkbox">允许私聊使用</label>
+            <div class="form-grid three"><div><label class="label" for="max-chars">字数上限</label><input id="max-chars" type="number" min="1" max="2000" step="1" required></div><div><label class="label" for="timeout">超时 / 秒</label><input id="timeout" type="number" min="10" max="180" step="1" required></div><div><label class="label" for="cooldown">间隔 / 秒</label><input id="cooldown" type="number" min="0" max="300" step="1" required></div></div>
+            <p class="help">超长的自动回复保留文字；同一会话遵守请求间隔，最多同时合成两段语音。</p>
+          </div></details>
+          <div class="save-bar"><span id="save-state" class="muted">加载配置中</span><button id="save" type="submit" class="primary">保存设置</button></div>
+        </fieldset>
+      </form>
+      <aside class="preview-column">
+        <section class="panel preview-panel" aria-labelledby="preview-title">
+          <div class="section-head"><div><span class="step">02</span><h3 id="preview-title">听听她的声音</h3></div></div>
+          <div class="sound-stage" aria-hidden="true"><div class="sound-halo"></div><div class="sound-bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+          <div class="selected-voice"><strong id="preview-voice">海星</strong><span id="preview-voice-kind">Stella · 女声</span></div>
+          <label class="label" for="preview-text">试听文案 <span id="text-count" class="muted">0 / 100</span></label>
+          <textarea id="preview-text" rows="4" maxlength="100" disabled></textarea>
+          <p class="help">使用当前所选音色和已保存的密钥。试听会调用官方 API，并按实际用量计费。</p>
+          <button id="preview" type="button" class="primary preview-button" disabled><span aria-hidden="true">▶</span> 生成试听</button>
+          <div id="player-area" class="player-area" hidden><div class="audio-heading"><span id="audio-info"></span><a id="download" download="deepseek-tts.wav">下载音频</a></div><audio id="player" controls preload="metadata"></audio></div>
+        </section>
+        <section class="tips"><h3>从一句话开始</h3><p>对可可子说「用语音介绍一下自己」，让她调用语音工具。</p><div class="command">/ds语音 今天也很高兴见到你！</div><p class="help">请在人格的工具权限中允许 <code>deepseek_tts_speak</code>。自动朗读仅处理普通 AI 回复；自定义唤醒可使用语音工具。</p><a href="https://api-docs.deepseek.com/zh-cn/guides/tts/" target="_blank" rel="noreferrer noopener">DeepSeek 官方语音文档 ↗</a></section>
+      </aside>
+    </div>
+    <footer><span>DeepSeek TTS · AstrBot 插件</span><span>合成失败时保留文字回复</span></footer>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+.devtools/
+.pytest_cache/
+pytest-of-*/
+.ruff_cache/
+.env
+.env.*
+!.env.example
+artifacts/
+dist/
