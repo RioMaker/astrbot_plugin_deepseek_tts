@@ -1,4 +1,4 @@
 {
-  "pages": {"settings": {"title":"语音设置与试听","description":"选择音色、设置语音回复并在线试听。"}},
-  "views": {"settings": {"title":"语音设置与试听","description":"选择音色、设置语音回复并在线试听。"}}
+  "pages": {"settings": {"title":"语音设置与试听","description":"设置语音回复、设计音色，并从曲库生成翻唱。"}},
+  "views": {"settings": {"title":"语音设置与试听","description":"设置语音回复、设计音色，并从曲库生成翻唱。"}}
 }

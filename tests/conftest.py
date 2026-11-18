@@ -14,13 +14,13 @@ from astrbot_plugin_deepseek_tts.settings import Settings
 from astrbot_plugin_deepseek_tts.speech import Audio
 
 
-def wav_bytes():
+def wav_bytes(seconds=0.1):
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as output:
         output.setnchannels(1)
         output.setsampwidth(2)
         output.setframerate(24000)
-        output.writeframes(b"\x10\x00" * 2400)
+        output.writeframes(b"\x10\x00" * int(24000 * seconds))
     return buffer.getvalue()
 
 
@@ -118,9 +118,13 @@ class Context:
 class Request:
     username = "admin"
     payload = None
+    uploads = None
 
     async def json(self, default=None):
         return self.payload
+
+    async def files(self):
+        return self.uploads or {}
 
 
 class Client:
@@ -140,8 +144,9 @@ class Client:
 
 
 @pytest.fixture(autouse=True)
-def no_external_key(monkeypatch):
-    monkeypatch.delenv("DEEPSEEK_API_KEY", raising=False)
+def no_external_keys(monkeypatch):
+    for name in ("DEEPSEEK_API_KEY", "VOLCENGINE_VOICE_API_KEY", "S1_COVER_API_KEY"):
+        monkeypatch.delenv(name, raising=False)
 
 
 @pytest.fixture
@@ -206,6 +211,9 @@ def plugin(tmp_path, monkeypatch):
         "astrbot.core.utils.astrbot_path", get_astrbot_data_path=lambda: str(tmp_path)
     )
     monkeypatch.delitem(sys.modules, "astrbot_plugin_deepseek_tts.main", raising=False)
+    monkeypatch.delitem(
+        sys.modules, "astrbot_plugin_deepseek_tts.studio_web", raising=False
+    )
     main = importlib.import_module("astrbot_plugin_deepseek_tts.main")
     config = Config(api_key="test-not-a-real-key", cooldown_seconds=0)
     instance = main.DeepSeekTTSPlugin(Context(), config)

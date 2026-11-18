@@ -79,6 +79,7 @@ $("settings-form").addEventListener("submit", async (event) => {
   setBusy(true); $("save").textContent = "保存中…";
   try {
     render(await bridge.apiPost("settings/save", payload));
+    document.dispatchEvent(new Event("deepseek-settings-saved"));
     notice("设置已保存，新的语音请求会立即使用这些设置。");
   } catch (error) { notice(error.message || "保存失败，请重试。", true); }
   finally { setBusy(false); $("save").textContent = "保存设置"; }

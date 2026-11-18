@@ -5,6 +5,7 @@ import re
 from dataclasses import asdict, dataclass, field
 
 PLUGIN_NAME = "astrbot_plugin_deepseek_tts"
+VERSION = "0.2.0"
 VOICES = {"stella": "海星 · 女声", "tide": "暗潮 · 男声"}
 PREVIEW_TEXT = "嗨，我是可可子！很高兴见到你。今天有什么想和我分享的吗？"
 

@@ -13,7 +13,7 @@
       <div class="brand"><span class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><div><span class="eyebrow">VOICE STUDIO</span><h1>DeepSeek TTS</h1></div></div>
       <span id="connection" class="badge">正在连接…</span>
     </header>
-    <div class="intro"><div><h2>让文字，有声音。</h2><p>为可可子选择音色，设置她的语音回复方式。</p></div><span class="version">v0.1.0</span></div>
+    <div class="intro"><div><h2>让文字，有声音。</h2><p>为可可子选择音色，设置她的语音回复方式。</p></div><div class="intro-links"><a href="#voice-studio">音色与翻唱 ↓</a><span class="version">v0.2.0</span></div></div>
     <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
     <div class="workspace">
       <form id="settings-form" class="panel settings-panel">
@@ -59,8 +59,122 @@
         <section class="tips"><h3>从一句话开始</h3><p>对可可子说「用语音介绍一下自己」，让她调用语音工具。</p><div class="command">/ds语音 今天也很高兴见到你！</div><p class="help">请在人格的工具权限中允许 <code>deepseek_tts_speak</code>。自动朗读仅处理普通 AI 回复；自定义唤醒可使用语音工具。</p><a href="https://api-docs.deepseek.com/zh-cn/guides/tts/" target="_blank" rel="noreferrer noopener">DeepSeek 官方语音文档 ↗</a></section>
       </aside>
     </div>
+    <section id="voice-studio" class="studio" aria-labelledby="studio-title">
+      <header class="studio-intro">
+        <div><span class="eyebrow">VOICE &amp; COVER</span><h2 id="studio-title">音色与翻唱</h2><p>用描述设计音色，再为曲库中的歌曲换声。</p></div>
+        <span class="badge ready">仅管理面板 · 不改变 QQ 回复</span>
+      </header>
+      <div id="studio-message" class="notice" role="status" hidden></div>
+      <details id="studio-credentials" class="panel studio-credentials">
+        <summary>平台密钥与依赖 <span id="studio-connection" class="muted">正在检查…</span></summary>
+        <form id="studio-keys-form">
+          <fieldset id="studio-keys-fields" disabled>
+            <div class="form-grid studio-grid">
+              <div>
+                <label class="label" for="studio-volcengine-key">火山引擎 API Key <span id="studio-volcengine-state" class="small-status"></span></label>
+                <input id="studio-volcengine-key" type="password" autocomplete="new-password" spellcheck="false" maxlength="512">
+                <label class="check-row key-clear"><input id="studio-clear-volcengine" type="checkbox">清除已保存的火山引擎密钥</label>
+              </div>
+              <div>
+                <label class="label" for="studio-s1-key">S1 Solutions API Key <span id="studio-s1-state" class="small-status"></span></label>
+                <input id="studio-s1-key" type="password" autocomplete="new-password" spellcheck="false" maxlength="512">
+                <label class="check-row key-clear"><input id="studio-clear-s1" type="checkbox">清除已保存的翻唱密钥</label>
+              </div>
+            </div>
+            <p id="studio-tools" class="help"></p>
+            <p class="help">留空保留原值；清除只影响已保存的密钥，不影响服务端环境变量。</p>
+            <div class="studio-actions"><button id="studio-save-keys" type="submit" class="secondary">保存平台密钥</button><span id="studio-keys-message" class="studio-message" role="status"></span></div>
+          </fieldset>
+        </form>
+      </details>
+      <div class="workspace studio-workspace">
+        <section class="panel" aria-labelledby="studio-design-title">
+          <div class="section-head"><div><span class="step">03</span><h3 id="studio-design-title">设计音色</h3></div></div>
+          <p class="help">在火山引擎开通豆包音色设计，填入已分配的 Speaker ID。提交将消耗该槽位的设计次数。</p>
+          <form id="studio-design-form">
+            <fieldset id="studio-design-fields" disabled>
+              <div class="form-grid studio-grid">
+                <div><label class="label" for="studio-provider">设计平台</label><select id="studio-provider" required></select></div>
+                <div><label class="label" for="studio-slot">Speaker ID</label><input id="studio-slot" type="text" placeholder="控制台分配的音色代号" maxlength="256" required></div>
+                <div><label class="label" for="studio-name">音色名称</label><input id="studio-name" type="text" placeholder="例如：薄荷女声" maxlength="60" required></div>
+                <div><label class="label" for="studio-language">试听语言</label><select id="studio-language"><option value="0">中文</option><option value="1">英文</option></select></div>
+              </div>
+              <label class="label" for="studio-prompt">音色描述</label>
+              <textarea id="studio-prompt" rows="3" maxlength="200" placeholder="例如：年轻女声，声线清亮，略带气声，语速放松" required></textarea>
+              <label class="label" for="studio-reference">试听文案 <span class="muted">最多 300 字</span></label>
+              <textarea id="studio-reference" rows="3" maxlength="300" required></textarea>
+              <label class="studio-check"><input id="studio-replace" type="checkbox"><span>允许覆盖同一个槽位的已设计音色</span></label>
+              <button id="studio-design" type="submit" class="primary">提交音色设计</button>
+              <p id="studio-design-message" class="studio-message" role="status"></p>
+              <p id="studio-design-job" class="studio-message studio-job" role="status" hidden></p>
+            </fieldset>
+          </form>
+          <div class="studio-library">
+            <label class="label" for="studio-voices">已设计的音色</label>
+            <select id="studio-voices" disabled></select>
+            <div class="studio-actions">
+              <button id="studio-voice-audio" type="button" class="secondary" disabled>加载试听</button>
+              <button id="studio-use-voice" type="button" class="secondary" disabled>用此音色翻唱</button>
+              <button id="studio-remove-voice" type="button" class="quiet" disabled>移除音色</button>
+            </div>
+            <p id="studio-voices-message" class="studio-message" role="status"></p>
+            <div id="studio-voice-player-area" class="player-area" hidden><div class="audio-heading"><span>音色样音</span><a id="studio-voice-download" download>下载样音</a></div><audio id="studio-voice-player" aria-label="音色样音" controls preload="metadata"></audio></div>
+          </div>
+        </section>
+        <section class="panel" aria-labelledby="studio-cover-title">
+          <div class="section-head"><div><span class="step">04</span><h3 id="studio-cover-title">生成翻唱</h3></div><span class="badge">S1 Solutions</span></div>
+          <p class="help">输入歌曲名称，查找已上传到曲库的原唱音频。不会联网搜歌，也不会按歌名编一首新歌。</p>
+          <details id="studio-import-details" class="studio-import">
+            <summary>上传歌曲到曲库 <span id="studio-song-count" class="muted"></span></summary>
+            <form id="studio-import-form">
+              <fieldset id="studio-import-fields" disabled>
+                <label class="label" for="studio-song-file">原唱文件</label>
+                <input id="studio-song-file" type="file" accept=".mp3,.wav,.m4a,.flac" required>
+                <label class="label" for="studio-song-name">显示名称 <span class="muted">可填「歌名 - 歌手」</span></label>
+                <input id="studio-song-name" type="text" maxlength="100" required>
+                <p class="help">MP3、WAV、M4A 或 FLAC，10 秒至 10 分钟，不超过 12 MiB。导入只保存在 AstrBot 服务端。</p>
+                <div class="studio-actions"><button id="studio-import" type="submit" class="secondary">导入曲库</button><span id="studio-import-message" class="studio-message" role="status"></span></div>
+              </fieldset>
+            </form>
+          </details>
+          <form id="studio-cover-form">
+            <fieldset id="studio-cover-fields" disabled>
+              <label class="label" for="studio-song-query">查找歌曲</label>
+              <input id="studio-song-query" type="search" maxlength="100" placeholder="输入歌名或歌手关键词" autocomplete="off">
+              <label class="label" for="studio-song">歌曲</label>
+              <select id="studio-song" required></select>
+              <div class="studio-actions studio-song-actions"><span id="studio-song-info" class="help"></span><button id="studio-remove-song" type="button" class="quiet" disabled>移除歌曲</button></div>
+              <label class="label" for="studio-cover-voice">翻唱音色</label>
+              <select id="studio-cover-voice" required></select>
+              <div class="form-grid">
+                <div><label class="label" for="studio-start">起点 / 秒</label><input id="studio-start" type="number" min="0" step="1" value="0" required></div>
+                <div><label class="label" for="studio-duration">时长 / 秒</label><input id="studio-duration" type="number" min="10" max="300" step="1" value="30" required></div>
+              </div>
+              <p class="help">翻唱所选的 10～300 秒；使用默认音色时，会先用已保存的 DeepSeek 密钥生成参考样音。</p>
+              <label class="studio-check"><input id="studio-rights" type="checkbox" required><span>我有权使用歌曲和音色，并同意将选定片段及参考样音上传至 S1 Solutions（调用可能计费）。</span></label>
+              <button id="studio-cover" type="submit" class="primary">生成翻唱</button>
+              <p id="studio-cover-message" class="studio-message" role="status"></p>
+              <p id="studio-cover-job" class="studio-message studio-job" role="status" hidden></p>
+            </fieldset>
+          </form>
+          <div id="studio-cover-result" class="studio-library" hidden>
+            <button id="studio-cover-audio" type="button" class="secondary">加载翻唱结果</button>
+            <p id="studio-cover-audio-message" class="studio-message" role="status"></p>
+            <div id="studio-cover-player-area" class="player-area" hidden><div class="audio-heading"><span>翻唱成品</span><a id="studio-cover-download" download>下载 MP3</a></div><audio id="studio-cover-player" aria-label="翻唱成品" controls preload="metadata"></audio></div>
+            <p class="help">只保留最近一次结果。建议下载保存，以免下一次任务或插件重启后丢失。</p>
+          </div>
+        </section>
+      </div>
+      <dialog id="studio-remove-dialog" class="panel" aria-labelledby="studio-remove-title">
+        <form method="dialog">
+          <h3 id="studio-remove-title">移除素材？</h3><p id="studio-remove-description"></p>
+          <div class="studio-actions"><button value="cancel" class="secondary" autofocus>取消</button><button value="remove" class="primary">确认移除</button></div>
+        </form>
+      </dialog>
+    </section>
     <footer><span>DeepSeek TTS · AstrBot 插件</span><span>合成失败时保留文字回复</span></footer>
   </main>
   <script type="module" src="./app.js"></script>
+  <script type="module" src="./studio.js"></script>
 </body>
 </html>

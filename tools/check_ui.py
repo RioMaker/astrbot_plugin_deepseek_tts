@@ -26,6 +26,87 @@ class QuietHandler(SimpleHTTPRequestHandler):
         pass
 
 
+def check_studio(page, sample, output):
+    page.get_by_role("link", name="音色与翻唱 ↓").click()
+    page.locator("#studio-credentials summary").click()
+    page.locator("#studio-volcengine-key").fill("test-volc-key")
+    page.locator("#studio-s1-key").fill("test-s1-key")
+    page.locator("#studio-save-keys").click()
+    page.get_by_text("平台密钥设置已保存。", exact=True).wait_for()
+    assert page.locator("#studio-volcengine-key").input_value() == ""
+    assert page.locator("#studio-s1-key").input_value() == ""
+
+    page.locator("#studio-slot").fill("S_test")
+    page.locator("#studio-name").fill("薄荷女声")
+    page.locator("#studio-prompt").fill("清亮、语速放松的年轻女声")
+    page.locator("#studio-design").click()
+    page.get_by_text(
+        "音色已保存，可直接用于翻唱。剩余设计次数：7。", exact=True
+    ).wait_for()
+    assert page.locator("#studio-voices").input_value() == "designed-one"
+    page.locator("#studio-voice-audio").click()
+    page.locator("#studio-voice-download").wait_for()
+    assert (
+        page.locator("#studio-voice-download").get_attribute("download")
+        == "薄荷女声.wav"
+    )
+    page.locator("#studio-use-voice").click()
+    assert page.locator("#studio-cover-voice").input_value() == "designed-one"
+    assert page.locator("#studio-cover-voice option[value=tide]").count() == 1
+
+    page.locator("#studio-import-details summary").click()
+    page.locator("#studio-song-file").set_input_files(
+        {"name": "original-name.wav", "mimeType": "audio/wav", "buffer": sample}
+    )
+    page.locator("#studio-song-name").fill("夜风 - 示例歌手")
+    page.locator("#studio-import").click()
+    page.get_by_text("已导入 夜风 - 示例歌手。", exact=True).wait_for()
+    assert page.evaluate("window.testUpload") == "夜风 - 示例歌手.wav"
+    page.locator("#studio-song-query").fill("不存在")
+    assert page.locator("#studio-cover").is_disabled()
+    page.locator("#studio-song-query").fill("夜风")
+    assert page.locator("#studio-song").input_value() == "imported-one"
+    page.locator("#studio-start").fill("12")
+    page.locator("#studio-duration").fill("30")
+    page.locator("#studio-cover").click()
+    assert (
+        page.evaluate("testCalls.some(({ endpoint }) => endpoint === 'studio/cover')")
+        is False
+    )
+    page.locator("#studio-rights").check()
+    page.locator("#studio-cover").click()
+    page.get_by_text(
+        "夜风 - 示例歌手 · 薄荷女声 · 所选片段 30 秒 · 已完成", exact=True
+    ).wait_for()
+    assert page.evaluate(
+        "testCalls.find(({ endpoint }) => endpoint === 'studio/cover').body"
+    ) == {
+        "song_id": "imported-one",
+        "voice_id": "designed-one",
+        "start_seconds": 12,
+        "duration_seconds": 30,
+        "rights_confirmed": True,
+    }
+    page.locator("#studio-cover-audio").click()
+    page.locator("#studio-cover-download").wait_for()
+    page.wait_for_function(
+        "document.getElementById('studio-cover-player').readyState >= 1"
+    )
+    with page.expect_download() as received:
+        page.locator("#studio-cover-download").click()
+    assert received.value.suggested_filename == "夜风 - 示例歌手 - 薄荷女声.mp3"
+    assert page.locator("#save-state").inner_text() == "有未保存的修改"
+    page.screenshot(path=str(output / "studio-desktop.png"), full_page=True)
+
+    page.locator("#studio-remove-song").click()
+    page.get_by_role("button", name="取消", exact=True).click()
+    assert page.locator("#studio-song").input_value() == "imported-one"
+    page.locator("#studio-remove-song").click()
+    page.get_by_role("button", name="确认移除", exact=True).click()
+    page.get_by_text("已移除本地素材。", exact=True).wait_for()
+    assert page.locator("#studio-cover").is_disabled()
+
+
 def run(output, browser_path):
     # Keep browser profiles and driver artifacts inside the task workspace.
     scratch = output.resolve() / "browser-temp"
@@ -49,16 +130,62 @@ def run(output, browser_path):
     settings.pop("api_key")
     settings.update(key_configured=True, key_source="config")
     state = {"settings": settings, "revision": "test-1", "preview_text": PREVIEW_TEXT}
-    bootstrap = """
+    mp3 = (bytes.fromhex("fffb50c4") + bytes(204)) * 50
+    bootstrap = (
+        """
     window.testState = STATE;
+    const studio = {
+      credentials: { volcengine: 'none', s1: 'none' }, has_preset_key: true,
+      designers: { volcengine: '火山引擎 · 豆包音色设计' },
+      presets: { stella: '海星 · 女声', tide: '暗潮 · 男声' }, default_voice: 'stella',
+      voices: [], songs: [], jobs: {}, ffmpeg_ready: true, reference_text: '欢迎来到音色工作台。',
+    };
     window.testCalls = [];
     window.failPreview = false;
     window.failSave = false;
     window.AstrBotPluginPage = {
       ready: async () => ({ isDark: false }),
-      apiGet: async () => structuredClone(window.testState),
+      apiGet: async (endpoint) => {
+        if (endpoint === 'studio/state') return structuredClone(studio);
+        if (endpoint === 'studio/voices/designed-one/audio') return { audio_base64: 'AUDIO', content_type: 'audio/wav' };
+        if (endpoint === 'studio/cover/cover-one/audio') return { audio_base64: 'COVER_AUDIO', content_type: 'audio/mpeg' };
+        if (endpoint !== 'state') throw new Error(`Unexpected GET ${endpoint}`);
+        return structuredClone(window.testState);
+      },
+      upload: async (endpoint, file) => {
+        if (endpoint !== 'studio/songs/import') throw new Error('Unexpected upload');
+        window.testUpload = file.name;
+        const song = { id: 'imported-one', title: file.name.slice(0, -4), suffix: '.wav', seconds: 160 };
+        studio.songs.push(song);
+        return song;
+      },
       apiPost: async (endpoint, body) => {
         window.testCalls.push({ endpoint, body: structuredClone(body) });
+        if (endpoint === 'studio/keys') {
+          if (body.volcengine_voice_api_key) studio.credentials.volcengine = 'config';
+          if (body.s1_cover_api_key) studio.credentials.s1 = 'config';
+          return structuredClone(studio.credentials);
+        }
+        if (endpoint === 'studio/design') {
+          const job = studio.jobs.design = { id: 'design-one', status: 'designing', error: '' };
+          setTimeout(() => {
+            studio.voices.push({ id: 'designed-one', name: body.name, provider: 'volcengine' });
+            Object.assign(job, { status: 'done', voice_id: 'designed-one', remaining: 7 });
+          }, 150);
+          return structuredClone(job);
+        }
+        if (endpoint === 'studio/cover') {
+          const job = studio.jobs.cover = { id: 'cover-one', status: 'running', error: '' };
+          setTimeout(() => Object.assign(job, {
+            status: 'done', title: studio.songs[0].title, voice_name: studio.voices[0].name,
+            seconds: body.duration_seconds,
+          }), 150);
+          return structuredClone(job);
+        }
+        if (endpoint === 'studio/songs/imported-one/remove') {
+          studio.songs = [];
+          return { removed: true };
+        }
         if (endpoint === 'preview') {
           if (window.failPreview) throw new Error('DeepSeek 服务繁忙，请稍后再试。');
           return { audio_base64: 'AUDIO', content_type: 'audio/wav', voice_id: body.voice_id, duration_seconds: .1 };
@@ -72,8 +199,9 @@ def run(output, browser_path):
         return structuredClone(window.testState);
       }
     };
-    """.replace("STATE", json.dumps(state)).replace(
-        "AUDIO", base64.b64encode(wav.getvalue()).decode()
+    """.replace("STATE", json.dumps(state))
+        .replace("COVER_AUDIO", base64.b64encode(mp3).decode())
+        .replace("AUDIO", base64.b64encode(wav.getvalue()).decode())
     )
     output.mkdir(parents=True, exist_ok=True)
     try:
@@ -115,6 +243,7 @@ def run(output, browser_path):
             page.get_by_text("保存失败，请重试。", exact=True).wait_for()
             assert page.locator("#output-mode").input_value() == "voice"
             assert page.locator("#save-state").inner_text() == "有未保存的修改"
+            check_studio(page, wav.getvalue(), output)
             page.evaluate(
                 "document.getElementById('notice').hidden = true; document.documentElement.dataset.theme = 'dark'"
             )
@@ -127,6 +256,7 @@ def run(output, browser_path):
             offline.goto(f"http://127.0.0.1:{server.server_port}/")
             offline.get_by_text("连接未完成", exact=True).wait_for()
             assert offline.locator("#save").is_disabled()
+            assert offline.locator("#studio-cover").is_disabled()
             browser.close()
     finally:
         server.shutdown()
@@ -140,6 +270,9 @@ def run(output, browser_path):
                     "preview playback source",
                     "save and secret clearing",
                     "error recovery",
+                    "studio credential isolation and voice design",
+                    "song import, title search and confirmed removal",
+                    "cover settings, consent and MP3 playback/download",
                     "desktop",
                     "dark",
                     "mobile no overflow",

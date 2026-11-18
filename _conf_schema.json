@@ -9,5 +9,7 @@
   "cooldown_seconds": {"type":"int","description":"同一会话请求间隔（秒）","default":3,"hint":"0～300 秒；最多同时合成两段音频。"},
   "filter_markdown": {"type":"bool","description":"去除 Markdown 格式后朗读","default":true},
   "allowed_group_ids": {"type":"list","description":"允许使用的 QQ 群","default":[],"hint":"填写群号字符串。留空允许所有启用此插件的群，仍遵守 AstrBot 的会话和插件权限。"},
-  "allow_private": {"type":"bool","description":"允许私聊使用","default":true}
+  "allow_private": {"type":"bool","description":"允许私聊使用","default":true},
+  "volcengine_voice_api_key": {"type":"string","description":"火山引擎豆包语音 API Key（仅配置页）","secret":true,"default":"","hint":"留空读取 AstrBot 进程的 VOLCENGINE_VOICE_API_KEY。"},
+  "s1_cover_api_key": {"type":"string","description":"S1 Solutions 翻唱 API Key（仅配置页）","secret":true,"default":"","hint":"留空读取 AstrBot 进程的 S1_COVER_API_KEY。"}
 }

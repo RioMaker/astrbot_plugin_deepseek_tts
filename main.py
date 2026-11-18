@@ -18,12 +18,15 @@ from astrbot.core.utils.astrbot_path import get_astrbot_data_path
 from .settings import (
     PLUGIN_NAME,
     PREVIEW_TEXT,
+    VERSION,
     VOICES,
     Settings,
     SettingsError,
     validate_patch,
 )
 from .speech import AudioStore, SpeechError, SpeechService, validate_text
+from .studio import STUDIO_FIELDS, Studio
+from .studio_web import StudioPage
 
 HANDLED = PLUGIN_NAME + ":handled"
 TOOL_RESULT = PLUGIN_NAME + ":tool_result"
@@ -34,10 +37,11 @@ class DeepSeekTTSPlugin(Star):
         super().__init__(context)
         self.config = config
         self.speech = SpeechService()
-        self.audio_store = AudioStore(
-            Path(get_astrbot_data_path()) / "plugin_data" / PLUGIN_NAME / "audio"
-        )
+        data_dir = Path(get_astrbot_data_path()) / "plugin_data" / PLUGIN_NAME
+        self.audio_store = AudioStore(data_dir / "audio")
         self._config_lock = asyncio.Lock()
+        self.studio = Studio(data_dir / "studio", config)
+        self.studio_page = StudioPage(context, self.studio, self._config_lock)
         for path, handler, method in (
             ("state", self.page_state, "GET"),
             ("settings/save", self.page_save, "POST"),
@@ -51,7 +55,10 @@ class DeepSeekTTSPlugin(Star):
         return Settings.read(self.config)
 
     def _revision(self):
-        data = json.dumps(dict(self.config), sort_keys=True, ensure_ascii=True)
+        values = {
+            key: value for key, value in self.config.items() if key not in STUDIO_FIELDS
+        }
+        data = json.dumps(values, sort_keys=True, ensure_ascii=True)
         return hashlib.sha256(data.encode()).hexdigest()
 
     def _allowed(self, event, settings):
@@ -66,7 +73,7 @@ class DeepSeekTTSPlugin(Star):
             "voices": VOICES,
             "preview_text": PREVIEW_TEXT,
             "runtime": dict(self.speech.status),
-            "version": "0.1.0",
+            "version": VERSION,
         }
 
     async def _record(self, settings, text, scope):
@@ -294,4 +301,4 @@ class DeepSeekTTSPlugin(Star):
             return error_response("试听失败，请稍后重试。", status_code=502)
 
     async def terminate(self):
-        await self.speech.close()
+        await asyncio.gather(self.speech.close(), self.studio.close())
